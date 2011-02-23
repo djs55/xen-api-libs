@@ -324,3 +324,51 @@ let test host port =
     incr counter;
     if !counter mod 100 = 0 then (Printf.printf "Ran stunnel %d times\n" !counter; flush stdout)
   done
+
+type handle = string
+
+module Request = struct
+	type t = 
+		| Stat of string * int
+	let string_of_t = function
+		| Stat (ip, port) ->
+			let msg = Printf.sprintf "STAT %s:%d" ip port in
+			let len = String.length msg in
+			let x = String.make (len + 2) '\000' in
+			x.[0] <- char_of_int (len mod 256);
+			x.[1] <- char_of_int (len / 256);
+			String.blit msg 0 x 2 len;
+			x
+end
+
+module Response = struct
+	type t =
+		| Stat of string * int
+	let t_of_string buf = 
+		let len = int_of_char buf.[1] * 256 + int_of_char buf.[0] in
+		let contents = String.sub buf 2 (String.length buf - 2) in
+		Scanf.sscanf contents "%s@:%d"
+			(fun ip port ->
+				Stat(ip, port)
+			)
+end
+			
+
+let control_rpc handle req = 
+	let x = Unix.socket Unix.PF_UNIX Unix.SOCK_STREAM 0 in
+	finally
+		(fun () ->
+			let a = Unix.ADDR_UNIX handle in
+			Unix.connect x a;
+			let buf = Request.string_of_t req in
+			let sent = Unix.send x buf 0 (String.length buf) [] in
+			if String.length buf <> sent
+			then failwith "Failed to write complete message";
+			let buf = String.make 1024 '\000' in
+			let received = Unix.recv x buf 0 (String.length buf) [] in
+			Response.t_of_string buf;
+		)
+		(fun () -> Unix.close x)
+
+let stat handle ip port = match control_rpc handle (Request.Stat (ip, port)) with
+		| Response.Stat(ip, port) -> (ip, port)

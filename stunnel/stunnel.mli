@@ -58,3 +58,12 @@ val disconnect : ?wait:bool -> ?force:bool -> t -> unit
 val diagnose_failure : t -> unit
 
 val test : string -> int -> unit
+
+(** Operations which query a running stunnel via the control interface *)
+
+(** The path to the stunnel control socket *)
+type handle = string
+
+(** [stat ip port] returns ip2:port2 of the incoming connection which corresponds
+	with the outgoing connection ip:port *)
+val stat: handle -> string -> int -> (string * int)

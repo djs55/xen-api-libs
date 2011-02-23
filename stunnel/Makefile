@@ -1,3 +1,4 @@
+IPROG=install -m 755
 CC = gcc
 CFLAGS = -Wall -fPIC -O2 -I/opt/xensource/lib/ocaml
 OCAMLC = ocamlc -g
@@ -5,6 +6,7 @@ OCAMLOPT = ocamlopt
 
 LDFLAGS = -cclib -L./
 
+LIBEXEC  = /opt/xensource/libexec
 VERSION := $(shell git show-ref --head | grep -E " HEAD$$" | cut -f 1 -d " " || echo 0)
 OCAMLOPTFLAGS = -g -dtypes
 
@@ -15,6 +17,8 @@ OCAMLDESTDIR ?= $(OCAMLLIBDIR)
 OBJS = stunnel stunnel_cache
 INTF = $(foreach obj, $(OBJS),$(obj).cmi)
 LIBS = stunnel.cma stunnel.cmxa
+
+PROGRAMS = stunnel-ctrl
 
 DOCDIR = /myrepos/xen-api-libs/doc
 
@@ -29,6 +33,9 @@ stunnel.cmxa: $(foreach obj,$(OBJS),$(obj).cmx)
 
 stunnel.cma: $(foreach obj,$(OBJS),$(obj).cmo)
 	$(OCAMLC) -a -o $@ $(foreach obj,$(OBJS),$(obj).cmo)
+
+stunnel-ctrl: stunnel.cmxa stunnel_ctrl.cmx
+	$(OCAMLOPT) $(OCAMLOPTFLAGS) -I ../rpc-light -I ../stdext -I ../uuid -I ../log log.cmxa uuid.cmxa unix.cmxa rpc.cmx jsonrpc.cmx stdext.cmxa stunnel.cmxa stunnel_ctrl.cmx -o $@ 
 
 %.cmo: %.ml
 	$(OCAMLC) -c -I ../stdext -I ../uuid -I ../log -o $@ $<
@@ -54,6 +61,16 @@ install: $(LIBS) META
 .PHONY: uninstall
 uninstall:
 	ocamlfind remove stunnel
+
+.PHONY: bininstall
+bininstall: path = $(DESTDIR)$(LIBEXEC)
+bininstall: all
+	mkdir -p $(DESTDIR)$(LIBEXEC)
+	$(IPROG) $(PROGRAMS) $(DESTDIR)$(LIBEXEC)
+
+.PHONY: binuninstall
+binuninstall:
+	rm -f $(DESTDIR)$(LIBEXEC)$(PROGRAMS)
 
 .PHONY: doc
 doc: $(INTF)

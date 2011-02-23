@@ -71,6 +71,7 @@ rm -rf $RPM_BUILD_ROOT
    /opt/xensource/libexec/sexprpp
    /opt/xensource/libexec/xmlpp
    /opt/xensource/libexec/extentlistset_test
+   /opt/xensource/libexec/stunnel-ctrl
 
 %files devel
 %defattr(-,root,root,-)
@@ -254,6 +255,7 @@ rm -rf $RPM_BUILD_ROOT
    /usr/lib/ocaml/stunnel/stunnel.cmxa
    /usr/lib/ocaml/stunnel/stunnel_cache.cmi
    /usr/lib/ocaml/stunnel/stunnel_cache.cmx
+   /usr/lib/ocaml/stunnel/stunnel_ctrl.cmx
    /usr/lib/ocaml/uuid/META
    /usr/lib/ocaml/uuid/uuid.a
    /usr/lib/ocaml/uuid/uuid.cma
