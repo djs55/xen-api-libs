@@ -67,3 +67,15 @@ type handle = string
 (** [stat ip port] returns ip2:port2 of the incoming connection which corresponds
 	with the outgoing connection ip:port *)
 val stat: handle -> string -> int -> (string * int)
+
+(** [pause ip port] stops the thread processing the connection identified by
+	ip:port *)
+val pause: handle -> string -> int -> unit
+
+(** [unpause ip port] restarts the thread processing the connection identified by
+	ip:port. This function is idempotent. *)
+val unpause: handle -> string -> int -> unit
+
+(** [splice ip port fd] transmits [fd] to stunnel such that it will be used for
+	communication once the primary plaintext connection is closed. *)
+val splice: handle -> string -> int -> Unix.file_descr -> unit

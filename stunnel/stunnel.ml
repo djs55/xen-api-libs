@@ -330,38 +330,60 @@ type handle = string
 module Request = struct
 	type t = 
 		| Stat of string * int
+		| Pause of string * int
+		| Unpause of string * int
+		| Splice of string * int
+
+	let wrap msg =
+		let len = String.length msg in
+		let x = String.make (len + 2) '\000' in
+		x.[0] <- char_of_int (len mod 256);
+		x.[1] <- char_of_int (len / 256);
+		String.blit msg 0 x 2 len;
+		x
+
+	let cmd_ip_port cmd ip port = 
+		wrap (Printf.sprintf "%s %s:%d" cmd ip port)
+
 	let string_of_t = function
-		| Stat (ip, port) ->
-			let msg = Printf.sprintf "STAT %s:%d" ip port in
-			let len = String.length msg in
-			let x = String.make (len + 2) '\000' in
-			x.[0] <- char_of_int (len mod 256);
-			x.[1] <- char_of_int (len / 256);
-			String.blit msg 0 x 2 len;
-			x
+		| Stat    (ip, port) -> cmd_ip_port "STAT"    ip port
+		| Pause   (ip, port) -> cmd_ip_port "PAUSE"   ip port
+		| Unpause (ip, port) -> cmd_ip_port "UNPAUSE" ip port
+		| Splice  (ip, port) -> cmd_ip_port "SPLICE"  ip port
 end
 
 module Response = struct
 	type t =
 		| Stat of string * int
-	let t_of_string buf = 
+		| OK
+
+	let ip_port buf = 
 		let len = int_of_char buf.[1] * 256 + int_of_char buf.[0] in
 		let contents = String.sub buf 2 (String.length buf - 2) in
 		Scanf.sscanf contents "%s@:%d"
-			(fun ip port ->
-				Stat(ip, port)
-			)
+			(fun ip port -> ip, port)
+
+	let ok = Request.wrap "OK"
+
+	let t_of_string buf = 
+		if buf = ok 
+		then OK
+		else 
+			let ip, port = ip_port buf in
+			Stat(ip, port)
 end
 			
 
-let control_rpc handle req = 
+let control_rpc ?fd handle req = 
 	let x = Unix.socket Unix.PF_UNIX Unix.SOCK_STREAM 0 in
 	finally
 		(fun () ->
 			let a = Unix.ADDR_UNIX handle in
 			Unix.connect x a;
 			let buf = Request.string_of_t req in
-			let sent = Unix.send x buf 0 (String.length buf) [] in
+			let sent = match fd with
+				| None -> Unix.send x buf 0 (String.length buf) []
+				| Some fd -> Unixext.send_fd x buf 0 (String.length buf) [] fd in
 			if String.length buf <> sent
 			then failwith "Failed to write complete message";
 			let buf = String.make 1024 '\000' in
@@ -370,5 +392,21 @@ let control_rpc handle req =
 		)
 		(fun () -> Unix.close x)
 
+exception Unexpected_response_from_stunnel
+
 let stat handle ip port = match control_rpc handle (Request.Stat (ip, port)) with
 		| Response.Stat(ip, port) -> (ip, port)
+		| _ -> raise Unexpected_response_from_stunnel
+
+let pause handle ip port = match control_rpc handle (Request.Pause (ip, port)) with
+		| Response.OK -> ()
+		| _ -> raise Unexpected_response_from_stunnel
+
+let unpause handle ip port = match control_rpc handle (Request.Unpause (ip, port)) with
+		| Response.OK -> ()
+		| _ -> raise Unexpected_response_from_stunnel
+
+let splice handle ip port fd = match control_rpc ~fd handle (Request.Splice (ip, port)) with
+		| Response.OK -> ()
+		| _ -> raise Unexpected_response_from_stunnel
+
