@@ -356,21 +356,24 @@ module Response = struct
 	type t =
 		| Stat of string * int
 		| OK
+		| Unknown
 
 	let ip_port buf = 
-		let len = int_of_char buf.[1] * 256 + int_of_char buf.[0] in
-		let contents = String.sub buf 2 (String.length buf - 2) in
-		Scanf.sscanf contents "%s@:%d"
+		Scanf.sscanf buf "%s@:%d"
 			(fun ip port -> ip, port)
 
-	let ok = Request.wrap "OK"
-
 	let t_of_string buf = 
-		if buf = ok 
-		then OK
-		else 
-			let ip, port = ip_port buf in
-			Stat(ip, port)
+		let len = int_of_char buf.[1] * 256 + int_of_char buf.[0] in
+		let contents = String.sub buf 2 (String.length buf - 2) in
+		match contents with
+			| "OK" -> OK
+(*
+			| x -> failwith (Printf.sprintf "Unexpected [%s] (%d)" contents len)
+*)
+			| "UNKNOWN" -> Unknown
+			| x ->
+				let ip, port = ip_port x in
+				Stat(ip, port)
 end
 			
 
@@ -388,7 +391,7 @@ let control_rpc ?fd handle req =
 			then failwith "Failed to write complete message";
 			let buf = String.make 1024 '\000' in
 			let received = Unix.recv x buf 0 (String.length buf) [] in
-			Response.t_of_string buf;
+			Response.t_of_string (String.sub buf 0 received);
 		)
 		(fun () -> Unix.close x)
 
