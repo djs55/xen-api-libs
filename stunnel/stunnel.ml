@@ -398,14 +398,6 @@ let stat handle ip port = match control_rpc handle (Request.Stat (ip, port)) wit
 		| Response.Stat(ip, port) -> (ip, port)
 		| _ -> raise Unexpected_response_from_stunnel
 
-let pause handle ip port = match control_rpc handle (Request.Pause (ip, port)) with
-		| Response.OK -> ()
-		| _ -> raise Unexpected_response_from_stunnel
-
-let unpause handle ip port = match control_rpc handle (Request.Unpause (ip, port)) with
-		| Response.OK -> ()
-		| _ -> raise Unexpected_response_from_stunnel
-
 let splice handle ip port fd = match control_rpc ~fd handle (Request.Splice (ip, port)) with
 		| Response.OK -> ()
 		| _ -> raise Unexpected_response_from_stunnel
