@@ -12,9 +12,12 @@ RPM_SOURCEDIR?=$(shell rpm --eval='%_sourcedir')
 XEN_RELEASE?=unknown
 endif
 
+xapi-libs.spec: xapi-libs.spec.in
+	sed -e 's/@RPM_RELEASE@/$(shell git rev-list HEAD | wc -l)/g' < $< > $@
+
 
 .PHONY: srpm
-srpm:
+srpm: xapi-libs.spec
 	while ! [ -d .git ]; do cd ..; done; \
 	git archive --prefix=xapi-libs-0/ --format=tar HEAD | bzip2 -z > $(RPM_SOURCEDIR)/xapi-libs-0.tar.bz2  # xen-api-libs/Makefile.xcp
 	rpmbuild --define "XEN_RELEASE $(XEN_RELEASE)" -bs --nodeps xapi-libs.spec
