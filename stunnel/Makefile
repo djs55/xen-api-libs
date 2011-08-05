@@ -4,7 +4,7 @@ CC = gcc
 CFLAGS = -Wall -fPIC -O2 -I/opt/xensource/lib/ocaml
 OCAMLC = ocamlc -g
 OCAMLOPT = ocamlopt
-
+OCAMLFIND = ocamlfind
 LDFLAGS = -cclib -L./
 
 VERSION := $(shell git show-ref --head | grep -E " HEAD$$" | cut -f 1 -d " " || echo 0)
@@ -18,6 +18,8 @@ OBJS = stunnel stunnel_cache
 INTF = $(foreach obj, $(OBJS),$(obj).cmi)
 LIBS = stunnel.cma stunnel.cmxa
 
+PROGRAMS = stunnel_cli
+
 DOCDIR = ../doc
 
 all: $(INTF) $(LIBS) $(PROGRAMS)
@@ -26,11 +28,16 @@ bins: $(PROGRAMS)
 
 libs: $(LIBS)
 
-stunnel.cmxa: $(foreach obj,$(OBJS),$(obj).cmx)
-	$(OCAMLOPT) $(OCAMLOPTFLAGS) -a -o $@ $(foreach obj,$(OBJS),$(obj).cmx)
+stunnel_cli: stunnel.cmxa stunnel_main.cmx
+	$(OCAMLFIND) $(OCAMLOPT) -package "stdext,unix" -cclib -L../log ../log/log.cmxa -linkpkg $(OCAMLOPTFLAGS) -o $@ stunnel.cmxa stunnel_main.cmx
 
-stunnel.cma: $(foreach obj,$(OBJS),$(obj).cmo)
-	$(OCAMLC) -a -o $@ $(foreach obj,$(OBJS),$(obj).cmo)
+stunnel_main.cmx: stunnel.cmxa
+
+stunnel.cmxa: stunnel.cmx stunnel_cache.cmx
+	$(OCAMLOPT) $(OCAMLOPTFLAGS) -a -o $@ $<
+
+stunnel.cma: stunnel.cmo stunnel_cache.cmo
+	$(OCAMLC) -a -o $@ $<
 
 %.cmo: %.ml
 	$(OCAMLC) -c -I ../stdext -I ../uuid -I ../log -o $@ $<

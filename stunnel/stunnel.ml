@@ -324,3 +324,115 @@ let test host port =
     incr counter;
     if !counter mod 100 = 0 then (Printf.printf "Ran stunnel %d times\n" !counter; flush stdout)
   done
+
+module Tunnel = struct
+	type t = {
+		pid: int;
+		remote_host: string;
+		remote_port: int;
+		local_port: int;
+	}
+	let choose_local_port =
+		let last = ref 8080 in
+		fun () ->
+			let port = !last in
+			incr last;
+			port
+
+	let config_dir = "/var/run/xapi/stunnel/config"
+	let pid_dir = "/var/run/xapi/stunnel/pid"
+
+	let config_file_of host port local_port =
+		Printf.sprintf "%s/%d:%s:%d" config_dir local_port host port
+	let pid_file_of host port local_port =
+		Printf.sprintf "%s/%d:%s:%d" pid_dir local_port host port
+
+	let debug (fmt : ('a, unit, string, unit) format4) =
+		Printf.kprintf (fun s ->
+			Syslog.log Syslog.Syslog Syslog.Err s
+		) fmt
+
+	let config_file host port local_port =
+		let lines = [
+			Printf.sprintf "pid = %s" (pid_file_of host port local_port);
+			"foreground=yes";
+			"socket = r:TCP_NODELAY=1";
+			"socket = a:TCP_NODELAY=1";
+			"socket = l:TCP_NODELAY=1";
+			Printf.sprintf "[%s]" host;
+			"client=yes";
+			Printf.sprintf "accept = 127.0.0.1:%d" local_port;
+			Printf.sprintf "connect = %s:%d" host port;
+		] in
+		String.concat "" (List.map (fun x -> x ^ "\n") lines)
+
+	let create_exn host port =
+		Unixext.mkdir_rec config_dir 0o755;
+		Unixext.mkdir_rec pid_dir 0o755;
+
+		let local_port = choose_local_port () in
+
+		(* Clean up any existing tunnel pointing to host:port *)
+		let config_filename = config_file_of host port local_port in
+		let pid_filename = pid_file_of host port local_port in
+		if Unixext.file_exists pid_filename then begin
+			begin try
+				let pid = Unixext.string_of_file pid_filename in
+				debug "Tunnel.create %s:%d found existing pid: %s" host port pid;
+				Unixext.kill_and_wait (int_of_string pid);
+			with e ->
+				debug "Ignoring exception: %s" (Printexc.to_string e)
+			end;
+			Unixext.unlink_safe pid_filename;
+		end;
+		if Unixext.file_exists config_filename
+		then Unixext.unlink_safe config_filename;
+
+		let path = stunnel_path() in
+		let config = config_file host port local_port in
+		Unixext.write_string_to_file config_filename config;
+
+		let pid' = Forkhelpers.safe_close_and_exec None None None [] path [ config_filename ] in
+		debug "stunnel has pidty: %s" (Forkhelpers.string_of_pidty pid');
+		let pid = Forkhelpers.getpid pid' in
+
+		(* Wait for either the stunnel to die or write its pidfile (which it
+		   only does after it has successfully bound its local port) *)
+		let finished = ref false in
+		let start = Unix.gettimeofday () in
+		while not !finished && (Unix.gettimeofday () -. start < 30.) do
+			if Unixext.file_exists pid_filename
+			then finished := true;
+			try
+				Unix.kill pid 0
+			with _ ->
+				finished := true
+		done;
+		Forkhelpers.dontwaitpid pid';
+		if not(Unixext.file_exists pid_filename) then begin
+			Unixext.unlink_safe config_filename;
+			raise Stunnel_initialisation_failed
+		end else {
+			pid = pid; remote_host = host; remote_port = port;
+			local_port = local_port
+		}
+
+	let rec retry n f =
+		try
+			f ()
+		with Stunnel_initialisation_failed as e ->
+			if n < 0 then raise e;
+			retry (n-1) f
+
+	let create host port = retry 100 (fun () -> create_exn host port)
+
+	let destroy x = Unixext.kill_and_wait x.pid
+
+	let flush () =
+		Array.iter
+			(fun pidfile ->
+				let path = Printf.sprintf "%s/%s" pid_dir pidfile in
+				let pid = int_of_string (Unixext.string_of_file path) in
+				Unixext.kill_and_wait pid
+			) (Sys.readdir pid_dir)
+end

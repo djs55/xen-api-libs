@@ -57,4 +57,16 @@ val disconnect : ?wait:bool -> ?force:bool -> t -> unit
 
 val diagnose_failure : t -> unit
 
+module Tunnel : sig
+	type t = {
+		pid: int;
+		remote_host: string;
+		remote_port: int;
+		local_port: int;
+	}
+	val create: string -> int -> t
+
+	val destroy: t -> unit
+end
+
 val test : string -> int -> unit
