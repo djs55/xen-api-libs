@@ -18,8 +18,13 @@
 (** An ISO-8601 date/time type. *)
 type iso8601
 
-(** Convert calendar time [x] (as returned by e.g. Unix.time), to time in UTC. *)
-val of_float : float -> iso8601
+(** Return the current calendar date/time *)
+val now : unit -> iso8601
+
+(** This function should be used for parsing only. Don't use this to perform
+	arithmetic on dates if you wish to sleep: use Oclock.* to retrieve a
+	monotonic clock source instead. *)
+val parse_float: float -> iso8601
 
 (** Convert date/time to a float value: the number of seconds since 00:00:00 UTC, 1 Jan 1970. *)
 val to_float : iso8601 -> float

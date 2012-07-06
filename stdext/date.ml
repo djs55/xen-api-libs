@@ -25,6 +25,8 @@ let of_float x =
     time.Unix.tm_min
     time.Unix.tm_sec
 
+let parse_float = of_float
+
 let months = [| "Jan"; "Feb"; "Mar"; "Apr"; "May"; "Jun"; 
 		"Jul"; "Aug"; "Sep"; "Oct"; "Nov"; "Dec" |]
 let days = [| "Sun"; "Mon"; "Tue"; "Wed"; "Thu"; "Fri"; "Sat" |]
@@ -70,3 +72,5 @@ let assert_utc x =
 	with _ -> invalid_arg x
 
 let never = of_float 0.0
+
+let now () = of_float (Unix.gettimeofday ())
