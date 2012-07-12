@@ -170,6 +170,5 @@ let http_rpc_recv_response use_fastpath error_msg fd =
     and then parses the response. On success, [f] is called with an HTTP response record.
     On failure an exception is thrown. *)
 let rpc ?(use_fastpath=false) (fd: Unix.file_descr) request f =
-(*	Printf.printf "request = [%s]" (Http.Request.to_wire_string request);*)
 	http_rpc_send_query fd request;
 	f (http_rpc_recv_response use_fastpath (Http.Request.to_string request) fd) fd

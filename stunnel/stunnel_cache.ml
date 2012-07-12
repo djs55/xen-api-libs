@@ -56,7 +56,6 @@ let unlocked_gc () =
       (now -. stunnel.Stunnel.connected_time) in
   let string_of_endpoint ep = Printf.sprintf "%s:%d" ep.host ep.port in
   let string_of_index ep xs = Printf.sprintf "[ %s %s ]" (string_of_endpoint ep) (String.concat "; " (List.map string_of_id xs)) in
-  debug "Cache contents: %s" (Hashtbl.fold (fun ep xs acc -> string_of_index ep xs ^ " " ^ acc) !index "");
 
   let all_ids = Hashtbl.fold (fun k _ acc -> k :: acc) !stunnels [] in
 
@@ -69,10 +68,8 @@ let unlocked_gc () =
        let idle = now -. time in
        let age = now -. stunnel.Stunnel.connected_time in
        if age > max_age then begin
-	 debug "Expiring stunnel id %s; age (%.2f) > limit (%.2f)" (id_of_stunnel stunnel) age max_age;
 	 to_gc := idx :: !to_gc
        end else if idle > max_idle then begin
-	 debug "Expiring stunnel id %s; idle (%.2f) > limit (%.2f)" (id_of_stunnel stunnel) age max_idle;
 	 to_gc := idx :: !to_gc
        end) !stunnels;
   let num_remaining = List.length all_ids - (List.length !to_gc) in
@@ -83,11 +80,6 @@ let unlocked_gc () =
     let times' = List.sort (fun x y -> compare (fst y) (fst x)) times' in
     let youngest, oldest = List.chop max_stunnel times' in
     let oldest_ids = List.map fst oldest in
-    List.iter
-      (fun x -> 
-	 let stunnel = Hashtbl.find !stunnels x in
-	 debug "Expiring stunnel id %s since we have too many cached tunnels (limit is %d)" 
-	   (id_of_stunnel stunnel) max_stunnel) oldest_ids;
     to_gc := !to_gc @ oldest_ids
   end;
   (* Disconnect all stunnels we wish to GC *)
@@ -126,8 +118,6 @@ let add (x: Stunnel.t) =
 	 then Hashtbl.find !index ep
 	 else [] in
        Hashtbl.replace !index ep (idx :: existing);
-       debug "Adding stunnel id %s (idle %.2f) to the cache"
-	     (id_of_stunnel x) 0.;
        unlocked_gc ()
     )
   
@@ -145,8 +135,6 @@ let remove host port =
        match sorted with
        | (id, time) :: _ ->
 	   let stunnel = Hashtbl.find !stunnels id in
-	   debug "Removing stunnel id %s (idle %.2f) from the cache"
-	     (id_of_stunnel stunnel) (Unix.gettimeofday () -. time);
 	   let stunnel = Hashtbl.find !stunnels id in
 	   Hashtbl.remove !stunnels id;
 	   Hashtbl.remove !times id;

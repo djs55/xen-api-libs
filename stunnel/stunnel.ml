@@ -196,8 +196,6 @@ let attempt_one_connect ?unique_id ?(use_fork_exec_helper = true)
 	         Unsafe.Dup2(logfd, Unix.stderr) ] in
        t.pid <-
          if use_fork_exec_helper then begin
-	         let cmdline = Printf.sprintf "Using commandline: %s\n" (String.concat " " (path::args)) in
-	         write_to_log cmdline;
 	         FEFork(Forkhelpers.safe_close_and_exec 
                     (Some data_in) (Some data_in) (Some logfd) configs path args)
          end else
@@ -211,8 +209,6 @@ let attempt_one_connect ?unique_id ?(use_fork_exec_helper = true)
        (* Make sure we close config_in eventually *)
          finally
 	       (fun () ->
-	          let pidmsg = Printf.sprintf "stunnel has pidty: %s" (string_of_pid t.pid) in
-	          write_to_log pidmsg;
             match config_in with
             | Some fd -> begin
 	              let config = config_file verify_cert extended_diagnosis host port in
@@ -230,13 +226,14 @@ let attempt_one_connect ?unique_id ?(use_fork_exec_helper = true)
   match result with
   | Forkhelpers.Success(log, _) -> 
       if extended_diagnosis then begin
-        write_to_log "stunnel start";
         t.logfile <- log
       end else
-        write_to_log ("stunnel start: Log from stunnel: [" ^ log ^ "]");
+		  if log <> ""
+		  then write_to_log ("stunnel start: Log from stunnel: [" ^ log ^ "]");
       t
   | Forkhelpers.Failure(log, exn) ->
-      write_to_log ("stunnel abort: Log from stunnel: [" ^ log ^ "]");
+	  if log <> ""
+	  then write_to_log ("stunnel abort: Log from stunnel: [" ^ log ^ "]");
       disconnect t;
       raise exn
 

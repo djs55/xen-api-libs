@@ -81,9 +81,13 @@ let check_reusable (x: Unix.file_descr) =
 						StunnelDebug.debug "check_reusable: no content-length from known-invalid URI: connection not reusable";
 						false
 			)
-	with exn ->
-		StunnelDebug.debug "check_reusable: caught exception %s; assuming not reusable" (Printexc.to_string exn);
-		false
+	with
+		| Unix.Unix_error(Unix.EPIPE, _, _) ->
+			StunnelDebug.debug "check_reusable: caught EPIPE; assuming not reusable";
+			false
+		| exn ->
+			StunnelDebug.debug "check_reusable: caught exception %s; assuming not reusable" (Printexc.to_string exn);
+			false
 
 (** Thrown when repeated attempts to connect an stunnel to a remote host and check
     the connection works fail. *)
@@ -98,6 +102,7 @@ let get_new_stunnel_id =
     has been checked out and guaranteed to work. *)
 let get_reusable_stunnel ?use_fork_exec_helper ?write_to_log host port =
   let found = ref None in
+  let from_cache = ref true in
   (* 1. First check if there is a suitable stunnel in the cache. *)
   begin
     try
@@ -106,16 +111,14 @@ let get_reusable_stunnel ?use_fork_exec_helper ?write_to_log host port =
 	if check_reusable x.Stunnel.fd
 	then found := Some x
 	else begin
-	  StunnelDebug.debug "get_reusable_stunnel: Found non-reusable stunnel in the cache. disconnecting from %s:%d" host port;
 	  Stunnel.disconnect x
 	end
       done
-    with Not_found -> ()
+    with Not_found -> from_cache := false
   end;
   match !found with
-  | Some x -> x
+  | Some x -> x, !from_cache
   | None ->
-      StunnelDebug.debug "get_reusable_stunnel: stunnel cache is empty; creating a fresh connection to %s:%d" host port;
       (* 2. Create a fresh connection and make sure it works *)
       begin
 	let max_attempts = 10 in
@@ -139,7 +142,7 @@ let get_reusable_stunnel ?use_fork_exec_helper ?write_to_log host port =
 	done
       end;
       begin match !found with
-      | Some x -> x
+      | Some x -> x, !from_cache
       | None ->
 	  StunnelDebug.error "get_reusable_stunnel: failed to acquire a working stunnel to connect to %s:%d" host port;
 	  raise Stunnel_connection_failed
@@ -204,19 +207,19 @@ let with_transport transport f = match transport with
 		verify_cert = verify_cert;
 		task_id = task_id}, host, port) ->
 		assert (not (verify_cert && use_stunnel_cache));
-		let st_proc =
+		let st_proc, from_cache =
 			if use_stunnel_cache
 			then get_reusable_stunnel ~use_fork_exec_helper ~write_to_log host port
 			else
 				let unique_id = get_new_stunnel_id () in
-				Stunnel.connect ~use_fork_exec_helper ~write_to_log ~unique_id ~verify_cert ~extended_diagnosis:true host port in
+				Stunnel.connect ~use_fork_exec_helper ~write_to_log ~unique_id ~verify_cert ~extended_diagnosis:true host port, false in
 		let s = st_proc.Stunnel.fd in
 		let s_pid = Stunnel.getpid st_proc.Stunnel.pid in
-		debug "stunnel pid: %d (cached = %b) connected to %s:%d" s_pid use_stunnel_cache host port;
+		debug "stunnel pid: %d (cache desired = %b%s) connected to %s:%d" s_pid use_stunnel_cache (if use_stunnel_cache then Printf.sprintf "; cache hit = %b" from_cache else "") host port;
 
 		(* Call the {,un}set_stunnelpid_callback hooks around the remote call *)
 		let with_recorded_stunnelpid task_opt s_pid f =
-			debug "with_recorded_stunnelpid task_opt=%s s_pid=%d" (Opt.default "None" task_opt) s_pid;
+			Opt.iter (fun task -> debug "associating Task %s with stunnel pid %d" task s_pid) task_opt;
 			begin
 				match !Internal.set_stunnelpid_callback with
 					| Some f -> f task_id s_pid
@@ -244,7 +247,6 @@ let with_transport transport f = match transport with
 						if use_stunnel_cache
 						then begin
 							Stunnel_cache.add st_proc;
-							debug "stunnel pid: %d (cached = %b) returned stunnel to cache" s_pid use_stunnel_cache;
 						end else
 							begin
 								Unix.unlink st_proc.Stunnel.logfile;

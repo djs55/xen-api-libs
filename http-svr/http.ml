@@ -418,12 +418,13 @@ module Request = struct
 
 	let to_string x =
 		let kvpairs x = String.concat "; " (List.map (fun (k, v) -> k ^ "=" ^ v) x) in
-		Printf.sprintf "{ frame = %b; method = %s; uri = %s; query = [ %s ]; content_length = [ %s ]; transfer encoding = %s; version = %s; cookie = [ %s ]; task = %s; subtask_of = %s; content-type = %s; host = %s; user_agent = %s }" 
+		Printf.sprintf "{ frame = %b; method = %s; uri = %s; query = [ %s ]; content_length = [ %s ]; transfer encoding = %s; version = %s; close = %b; cookie = [ %s ]; task = %s; subtask_of = %s; content-type = %s; host = %s; user_agent = %s }" 
 			x.frame (string_of_method_t x.m) x.uri
 			(kvpairs x.query)
 			(default "" (may Int64.to_string x.content_length))
 			(default "" x.transfer_encoding)
 			x.version
+			x.close
 			(kvpairs x.cookie)
 			(default "" x.task)
 			(default "" x.subtask_of)
