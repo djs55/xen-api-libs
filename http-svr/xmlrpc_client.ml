@@ -277,7 +277,13 @@ module XML = struct
 	let response_of_file_descr fd = Xml.parse_in (Unix.in_channel_of_descr fd)
 	type request = Xml.xml
 	let request_to_string = Xml.to_string
-	let request_to_short_string = Xml.to_string
+	let request_to_short_string x =
+		(* Pretty-print as JSON since it's more compact and readable *)
+		let y = Xml.to_string x in
+		try
+			let x = Xmlrpc.call_of_string y in
+			Jsonrpc.string_of_call x
+		with _ -> y
 end
 
 module XMLRPC = struct
@@ -286,7 +292,7 @@ module XMLRPC = struct
 	let response_of_file_descr fd = Xmlrpc.response_of_in_channel (Unix.in_channel_of_descr fd)
 	type request = Rpc.call
 	let request_to_string x = Xmlrpc.string_of_call x
-	let request_to_short_string x = x.Rpc.name
+	let request_to_short_string x = Jsonrpc.string_of_call x
 end
 
 module Protocol = functor(F: FORMAT) -> struct
