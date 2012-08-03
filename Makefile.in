@@ -19,8 +19,10 @@ endif
 	$(MAKE) -C uuid
 	$(MAKE) -C stdext
 	$(MAKE) -C log
+ifeq ($(HAVE_XENCTRL),xenctrl)
 	$(MAKE) -C xenctrlext
 	$(MAKE) -C xenstoreext
+endif
 	$(MAKE) -C stunnel
 	$(MAKE) -C pciutil
 	$(MAKE) -C close-and-exec
@@ -64,8 +66,10 @@ $(STUBLIBDIR):
 install: $(STUBLIBDIR) 
 	$(MAKE) -C uuid install
 	$(MAKE) -C stdext install
+ifeq ($(HAVE_XENCTRL),xenctrl)
 	$(MAKE) -C xenctrlext install
 	$(MAKE) -C xenstoreext install
+endif
 	$(MAKE) -C log install
 	$(MAKE) -C stunnel install
 	$(MAKE) -C pciutil install
@@ -109,8 +113,10 @@ endif
 uninstall:
 	$(MAKE) -C uuid uninstall
 	$(MAKE) -C stdext uninstall
+ifeq ($(HAVE_XENCTRL),xenctrl)
 	$(MAKE) -C xenctrlext uninstall
 	$(MAKE) -C xenstoreext uninstall
+endif
 	$(MAKE) -C log uninstall
 	$(MAKE) -C stunnel uninstall
 	$(MAKE) -C pciutil uninstall
@@ -155,8 +161,10 @@ endif
 doc:
 	$(MAKE) -C uuid doc
 	$(MAKE) -C stdext doc
+ifeq ($(HAVE_XENCTRL),xenctrl)
 	$(MAKE) -C xenctrlext doc
 	$(MAKE) -C xenstoreext doc
+endif
 	$(MAKE) -C sexpr doc
 	$(MAKE) -C udev doc
 	$(MAKE) -C log doc
@@ -188,8 +196,10 @@ clean:
 	$(MAKE) -C uuid clean
 	$(MAKE) -C camldm clean
 	$(MAKE) -C stdext clean
+ifeq ($(HAVE_XENCTRL),xenctrl)
 	$(MAKE) -C xenctrlext clean
 	$(MAKE) -C xenstoreext clean
+endif
 	$(MAKE) -C log clean
 	$(MAKE) -C stunnel clean
 	$(MAKE) -C pciutil clean

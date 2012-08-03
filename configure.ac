@@ -53,6 +53,7 @@ fi
 
 AC_CHECK_OCAML_PKG([xmlm])
 AC_CHECK_OCAML_PKG([type-conv])
+AC_CHECK_OCAML_PKG([xenctrl])
 
 AC_CONFIG_FILES([Makefile config.mk])
 AC_SUBST([XEN])
