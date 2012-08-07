@@ -46,8 +46,9 @@ endif
 	$(MAKE) -C nbd
 	CFLAGS="-fPIC -I/usr/lib/ocaml" $(MAKE) -C oclock
 
-ifeq ($(HAVE_XEN),1)
 	$(MAKE) -C netdev
+
+ifeq ($(HAVE_XEN),1)
 	$(MAKE) -C cpuid
 	$(MAKE) -C vhd
 	$(MAKE) -C tapctl
@@ -96,8 +97,9 @@ endif
 	$(MAKE) -C nbd install
 	$(MAKE) -C oclock install
 
-ifeq ($(HAVE_XEN),1)
 	$(MAKE) -C netdev install
+
+ifeq ($(HAVE_XEN),1)
 	$(MAKE) -C cpuid install
 	$(MAKE) -C vhd install
 	$(MAKE) -C tapctl install
@@ -143,8 +145,9 @@ endif
 	$(MAKE) -C nbd uninstall
 	$(MAKE) -C oclock uninstall
 
-ifeq ($(HAVE_XEN),1)
 	$(MAKE) -C netdev uninstall
+
+ifeq ($(HAVE_XEN),1)
 	$(MAKE) -C cpuid uninstall
 	$(MAKE) -C vhd uninstall
 	$(MAKE) -C tapctl uninstall
