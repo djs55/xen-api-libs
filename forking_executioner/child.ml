@@ -20,6 +20,15 @@ type state_t = {
   finished : bool;
 }
 
+(** has_substr str sub returns true if sub is a substring of str. *)
+let has_substr str sub =
+  let r = Re_str.regexp_string sub in (* exactly matches [sub] *)
+  try
+    let (_: int) = Re_str.search_forward r str 0 in
+    true
+  with Not_found ->
+    false
+
 open Fe_debug
 
 let handle_fd_sock fd_sock state =
@@ -172,7 +181,7 @@ let run state comms_sock fd_sock fd_sock_path =
 		let cmdline = String.concat " " args in
 		let limit = 80 - 3 in
 		let cmdline' = if String.length cmdline > limit then String.sub cmdline 0 limit ^ "..." else cmdline in
-		if code=0 && name = "/opt/xensource/sm/ISOSR" && (String.has_substr cmdline' "sr_scan") then () else
+		if code=0 && name = "/opt/xensource/sm/ISOSR" && (has_substr cmdline' "sr_scan") then () else
 			Syslog.syslog Fe_debug.syslog `LOG_ERR (Printf.sprintf "%d (%s) %s %d" result cmdline' reason code) in
 
 	  let status = ref (Unix.WEXITED (-1)) in
